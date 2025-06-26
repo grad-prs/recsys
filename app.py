@@ -242,7 +242,6 @@ def main():
                         paths = recwalk.get_kg_paths(user_id=selected_user, artist_id=artist_id)
                         
                         if paths:
-                            # Create columns for better layout
                             col1, col2 = st.columns([1, 3])
                             
                             with col1:
@@ -256,7 +255,6 @@ def main():
                                 st.markdown("#### Connection Paths")
                                 st.code(visualize_paths_flowchart(paths), language='text')
                                 
-                                # Show metrics
                                 total_weight = sum(p['weight'] for p in paths)
                                 st.caption(f"Total connection strength: {total_weight:.3f}")
                         else:

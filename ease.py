@@ -38,7 +38,7 @@ class EASE:
             
         user_data = user_artist_df[user_artist_df['userID'] == user_id]
         if len(user_data) == 0:
-            return []  # Cold-start user
+            return []
             
         # Get user's artists and weights
         user_artists = []

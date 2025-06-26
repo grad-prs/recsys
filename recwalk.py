@@ -13,11 +13,11 @@ import networkx as nx
 class RecWalk:
     def __init__(self, alpha=0.3):
         self.alpha = alpha
-        self.user2idx = {}  # Maps userID to graph index
-        self.artist2idx = {}  # Maps artistID to graph index
-        self.tag2idx = {}  # Maps tagID to graph index
-        self.P = None  # Transition probability matrix
-        self.popular_artists = None  # Cache for popular artists fallback
+        self.user2idx = {}
+        self.artist2idx = {}
+        self.tag2idx = {}
+        self.P = None
+        self.popular_artists = None
 
     def build_graph(self, user_artists, user_friends, user_tags, entity2id):
         num_entities = len(entity2id)
@@ -86,7 +86,7 @@ class RecWalk:
         x = np.zeros(num_nodes)
         x[self.user2idx[user_id]] = 1.0
         
-        for _ in range(30):  # 30 iterations for convergence
+        for _ in range(30):
             x = (1 - self.alpha) * x + self.alpha * self.P.dot(x)
         
         # Get top artists
@@ -152,13 +152,13 @@ class GenreEnhancedRecWalk:
         """
         self.alpha = alpha
         self.genre_weight = genre_weight
-        self.user2idx = {}       # {userID: graph_idx}
-        self.artist2idx = {}     # {artistID: graph_idx}
-        self.tag2idx = {}        # {tagID: graph_idx} 
-        self.genre2idx = {}      # {genre_name: graph_idx}
-        self.id2entity = {}      # Reverse mapping
-        self.P = None            # Transition matrix
-        self.artist_genres = defaultdict(list)  # {artistID: [genre1, genre2]}
+        self.user2idx = {}       
+        self.artist2idx = {}     
+        self.tag2idx = {}        
+        self.genre2idx = {}      
+        self.id2entity = {}      
+        self.P = None            
+        self.artist_genres = defaultdict(list)  
         self.popular_artists = None
 
     def build_graph(self, user_artists, user_friends, user_tags, artist_genres, entity2id):
@@ -193,8 +193,8 @@ class GenreEnhancedRecWalk:
                 for genre in self.artist_genres.get(row['artistID'], []):
                     if genre in entity2id:
                         g_idx = entity2id[genre]
-                        adj[a_idx, g_idx] = 1  # Strong artist->genre
-                        adj[g_idx, a_idx] = 0.5  # Weak genre->artist
+                        adj[a_idx, g_idx] = 1  
+                        adj[g_idx, a_idx] = 0.5  
 
         # 2. Social relationships (bidirectional)
         for _, row in user_friends.iterrows():
@@ -321,7 +321,7 @@ class GenreEnhancedRecWalk:
         for user_id, true_artists in test_users.items():
             # Get recommendations
             recs = self.recommend(user_id, top_k)
-            rec_artists = [a for a, _ in recs]  # Maintain order for DCG
+            rec_artists = [a for a, _ in recs]
             
             # Only evaluate on artists present in training
             valid_test = true_artists & train_artists
@@ -339,7 +339,7 @@ class GenreEnhancedRecWalk:
             # Calculate DCG
             dcg = sum(rel / np.log2(i + 2) for i, rel in enumerate(relevance))
             
-            # Calculate IDCG (ideal ordering would put all relevant items first)
+            # Calculate IDCG
             ideal_relevance = [1]*min(len(valid_test), top_k) + [0]*max(0, top_k - len(valid_test))
             idcg = sum(rel / np.log2(i + 2) for i, rel in enumerate(ideal_relevance))
             
@@ -371,12 +371,6 @@ class GenreEnhancedRecWalk:
             'Users': metrics['n_users']
         }
         
-        # print(f"Evaluated {results['Users']} users:")
-        # print(f"Precision@{top_k}: {results['Precision@K']:.4f}")
-        # print(f"Recall@{top_k}: {results['Recall@K']:.4f}")
-        # print(f"NDCG@{top_k}: {results['NDCG@K']:.4f}")
-        # print(f"GenreCoverage@{top_k}: {results['GenreCoverage@K']:.4f}")
-        
         return results
 
     def save_model(self, path):
@@ -397,9 +391,8 @@ class GenreEnhancedRecWalk:
         """Return the networkx graph representation"""
         G = nx.DiGraph()
         
-        # Add all nodes with their types
-        for idx, entity in self.id2entity.items():  # Note: swapped order to idx, entity
-            if isinstance(entity, str):  # Ensure entity is a string
+        for idx, entity in self.id2entity.items():
+            if isinstance(entity, str):
                 if entity.startswith('user_'):
                     G.add_node(idx, type='user', label=f"User {entity[5:]}")
                 elif entity.startswith('artist_'):
@@ -409,14 +402,13 @@ class GenreEnhancedRecWalk:
                 elif entity.startswith('genre_'):
                     G.add_node(idx, type='genre', label=f"Genre {entity[6:]}")
             else:
-                # Handle non-string entities (skip or add as unknown)
                 continue
         
         # Add edges with weights
         rows, cols = self.P.nonzero()
         for i, j in zip(rows, cols):
             weight = self.P[i,j]
-            if weight > 0.01:  # Only include significant edges
+            if weight > 0.01:
                 G.add_edge(i, j, weight=weight)
         
         return G
@@ -479,9 +471,9 @@ class GenreEnhancedRecWalk:
 class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
     def __init__(self, alpha=0.3, genre_weight=0.5, sim_weight=0.7):
         super().__init__(alpha, genre_weight)
-        self.sim_weight = sim_weight  # Weight for similarity edges
-        self.artist_sim = None  # Will store artist similarity matrix
-        self.common_artists = None  # Artists with both listening and genre data
+        self.sim_weight = sim_weight
+        self.artist_sim = None
+        self.common_artists = None
 
     def build_graph(self, user_artists, user_friends, user_tags, artist_genres, entity2id):
         # First build the base graph
@@ -505,7 +497,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
         # 2. Genre similarity - only for artists with genre information
         genre_vecs = {}
         for artist, genres in artist_genres.items():
-            if artist in self.artist2idx:  # Only consider artists in our graph
+            if artist in self.artist2idx:
                 genre_vecs[artist] = Counter(genres)
         
         genre_artists = sorted(genre_vecs.keys())
@@ -542,8 +534,8 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
         # Store the similarity matrix and mapping
         self.artist_sim = combined_sim
         self.common_artists = common_artists
-        self.common_idx = common_idx  # Mapping from artist to index in similarity matrix
-        np.fill_diagonal(self.artist_sim, 0)  # Remove self-similarity
+        self.common_idx = common_idx
+        np.fill_diagonal(self.artist_sim, 0)
 
     def _jaccard_similarity(self, a, b):
         """Calculate Jaccard similarity between two genre sets"""
@@ -567,14 +559,14 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
             sim_scores = self.artist_sim[i]
             
             # Get top similar artists (excluding self)
-            top_k = min(5, len(sim_scores)-1)  # Ensure we don't ask for more than available
+            top_k = min(5, len(sim_scores)-1)
             top_indices = np.argpartition(sim_scores, -top_k)[-top_k:]
             
             for similar_idx in top_indices:
                 similar_artist = self.common_artists[similar_idx]
                 sim_score = sim_scores[similar_idx]
                 
-                if sim_score > 0.3 and similar_artist in artist_indices:  # Threshold and exists in graph
+                if sim_score > 0.3 and similar_artist in artist_indices:
                     a_idx = artist_indices[artist]
                     s_idx = artist_indices[similar_artist]
                     
@@ -584,20 +576,6 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
         
         # Renormalize the transition matrix
         self.P = normalize(self.P, norm='l1', axis=1)
-
-    # def recommend(self, user_id, top_k=10):
-    #     """Enhanced recommendation with similarity propagation"""
-    #     recs = super().recommend(user_id, top_k*2)  # Get extra candidates
-        
-    #     # Re-rank using similarity to user's preferred artists
-    #     if user_id in self.user2idx:
-    #         user_artists = [a for a in self.artist2idx 
-    #                       if self.P[self.user2idx[user_id], self.artist2idx[a]] > 0
-    #                       and a in self.common_idx]  # Only consider artists with similarity data
-    #         if user_artists:
-    #             recs = self._rerank_by_similarity(recs, user_artists)
-        
-    #     return recs[:top_k]
 
     def _rerank_by_similarity(self, recommendations, user_artists):
         """Re-rank recommendations based on similarity to user's artists"""
@@ -671,7 +649,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
                     for i, sim in enumerate(self.artist_sim[artist_sim_idx])
                     if sim > 0.3 and i != artist_sim_idx
                 ]
-                for sim_artist, sim_score in similar_artists[:3]:  # Top 3 similar
+                for sim_artist, sim_score in similar_artists[:3]:
                     explanation['sources'].append({
                         'type': 'similar_artist',
                         'artist': sim_artist,
@@ -685,7 +663,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
 
     def recommend(self, user_id, top_k=10, explain=False):
         """Enhanced recommendation with similarity propagation and explanation support"""
-        recs = super().recommend(user_id, top_k*2)  # Get extra candidates
+        recs = super().recommend(user_id, top_k*2)
         
         # Re-rank using similarity to user's preferred artists
         if user_id in self.user2idx:
@@ -789,7 +767,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
                     
                 u_idx = self.common_idx[u_artist]
                 sim_score = self.artist_sim[u_idx, artist_sim_idx]
-                if sim_score > 0:  # No need for min_weight here since we multiply below
+                if sim_score > 0:
                     combined_weight = (self.P[user_idx, self.artist2idx[u_artist]] * 
                                     self.sim_weight * 
                                     sim_score)
