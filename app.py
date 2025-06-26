@@ -58,8 +58,8 @@ def load_data():
     return tags, user_artists, user_tags, user_friends, artist_genres, train_data, test_data
 
 @st.cache_data(show_spinner=False)
-def get_recwalk(user_artists, user_friends, user_tags, artist_genres, entity2id):
-    model = SimilarityEnhancedRecWalk(alpha=0.1, genre_weight=0.5, sim_weight=0.7)
+def get_recwalk(user_artists, user_friends, user_tags, artist_genres, entity2id, alpha=0.1):
+    model = SimilarityEnhancedRecWalk(alpha, genre_weight=0.5, sim_weight=0.7)
     model.build_graph(user_artists, user_friends, user_tags, artist_genres, entity2id)
     return model
 
@@ -126,33 +126,33 @@ def visualize_paths_flowchart(paths):
         
         # Header with emoji
         viz.append(f"╭── {path_icons.get(path_type, '')} {path_type.upper()} PATH ──╮")
-        viz.append(f"│ Strength: {weight:.4f}")
+        # viz.append(f"│ Strength: {weight:.4f}")
         viz.append("├──────────────────────")
         
         # Path visualization with emojis
         if path_type == 'direct':
-            viz.append("│ 👤 YOU → 🎵 Listened → 🎤 ARTIST")
-            viz.append(f"│ Direct weight: {details['direct_weight']:.4f}")
+            viz.append("│ 👤 YOU → 🎵 Listened To → 🎤 ARTIST")
+            # viz.append(f"│ Direct weight: {details['direct_weight']:.4f}")
             
         elif path_type == 'friend':
             viz.append(f"│ 👤 YOU → 👥 Friends With → 👤 USER {details['friend_id']}")
-            viz.append(f"│            → 🎵 Listened → 🎤 ARTIST")
-            viz.append(f"│ Friend connection: {details['user_friend_weight']:.4f}")
-            viz.append(f"│ Their listening: {details['friend_artist_weight']:.4f}")
+            viz.append(f"│            → 🎵 Listened To → 🎤 ARTIST")
+            # viz.append(f"│ Friend connection: {details['user_friend_weight']:.4f}")
+            # viz.append(f"│ Their listening: {details['friend_artist_weight']:.4f}")
             
         elif path_type == 'genre':
-            genre = details['genre'].replace('genre_', '')[:20]
+            genre = details['genre'].replace('genre_', '')
             viz.append(f"│ 👤 YOU → ❤️ Like → 🏷️ {genre}")
             viz.append(f"│            → 🔗 Describes → 🎤 ARTIST")
-            viz.append(f"│ Genre matches: {details['user_genre_count']}")
+            # viz.append(f"│ Genre matches: {details['user_genre_count']}")
             
         elif path_type == 'similarity':
             via_name = artist_map.get(int(details['via_artist'].replace('artist_', '')), 
                                     details['via_artist'])
-            viz.append(f"│ 👤 YOU → 🎵 Listened → 🎤 {via_name[:15]}")
+            viz.append(f"│ 👤 YOU → 🎵 Listened To → 🎤 {via_name}")
             viz.append(f"│            → 🔄 Similar → 🎤 ARTIST")
-            viz.append(f"│ Similarity: {details['similarity_score']:.4f}")
-            viz.append(f"│ Your listening: {details['user_artist_weight']:.4f}")
+            # viz.append(f"│ Similarity: {details['similarity_score']:.4f}")
+            # viz.append(f"│ Your listening: {details['user_artist_weight']:.4f}")
         
         # Footer
         viz.append("╰──────────────────────╯")
@@ -179,14 +179,24 @@ def main():
     user_ids = load_users(test_data)
     # user_history = load_user_history(user_artists)
     user_history = load_user_history(train_data)
-    # recwalk = get_recwalk(user_artists, user_friends, user_tags, artist_genres, entity2id)
-    recwalk = get_recwalk(train_data, user_friends, user_tags, artist_genres, entity2id)
     hybrid = HybridRecommender(model_dir="models/hybrid", k=30)
     ease = train_ease(train_data)
 
     # Sidebar: Select model and user
     st.sidebar.header("Recommender Settings")
     selected_model = st.sidebar.selectbox("Choose Model", ["RecWalk", "EASE", "Hybrid", "Random"])
+    if selected_model == "RecWalk":
+        alpha = st.sidebar.slider("Restart Probability (alpha)", 
+                                min_value=0.01, 
+                                max_value=0.99, 
+                                value=0.8, 
+                                step=0.01,
+                                help="Controls how often the random walk restarts from the user node")
+        # print(f"alpha = {alpha}")
+        # recwalk = get_recwalk(user_artists, user_friends, user_tags, artist_genres, entity2id, alpha)
+        recwalk = get_recwalk(train_data, user_friends, user_tags, artist_genres, entity2id, alpha)
+
+    
     selected_user = st.sidebar.selectbox("Choose User", user_ids)
     top_k = st.sidebar.slider("Number of Recommendations", 5, 50, 50)
     show_metrics = st.sidebar.checkbox("Show Evaluation Metrics", value=True)
@@ -238,7 +248,8 @@ def main():
                 for i, artist_id in enumerate(top_artists, 1):
                     artist_name = artist_map.get(artist_id, f"Artist {artist_id}")
                     
-                    with st.expander(f"🎤 Recommendation #{i}: {artist_name}", expanded=(i==1)):
+                    with st.expander(f"🎤 Recommendation Explanation #{i}: {artist_name}", 
+                                expanded=(i in [1, 2, 3, 4, 5])):
                         paths = recwalk.get_kg_paths(user_id=selected_user, artist_id=artist_id)
                         
                         if paths:
@@ -256,7 +267,7 @@ def main():
                                 st.code(visualize_paths_flowchart(paths), language='text')
                                 
                                 total_weight = sum(p['weight'] for p in paths)
-                                st.caption(f"Total connection strength: {total_weight:.3f}")
+                                # st.caption(f"Total connection strength: {total_weight:.3f}")
                         else:
                             st.warning("No connecting paths found for this recommendation")
                             

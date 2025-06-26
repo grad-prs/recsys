@@ -679,7 +679,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
             return self._explain_recommendations(user_id, final_recs)
         return final_recs
 
-    def get_kg_paths(self, user_id, artist_id, max_paths=3, min_weight=0.01):
+    def get_kg_paths(self, user_id, artist_id, max_paths=3, min_weight=0.0):
         """Get important KG paths that connect user to recommended artist with consistent keys"""
         paths = []
         
@@ -697,7 +697,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
         
         # 1. Direct connection path (user -> artist)
         direct_weight = self.P[user_idx, artist_idx]
-        if direct_weight > min_weight:
+        if direct_weight >= min_weight:
             paths.append({
                 'path_type': 'direct',
                 'path': ['user', 'listened', 'artist'],
@@ -716,7 +716,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
             friend_artist = self.P[friend_idx, artist_idx]
             if user_friend > 0 and friend_artist > 0:
                 combined_weight = user_friend * friend_artist
-                if combined_weight > min_weight:
+                if combined_weight >= min_weight:
                     paths.append({
                         'path_type': 'friend',
                         'path': ['user', 'friends_with', 'user', 'listened', 'artist'],
@@ -771,7 +771,7 @@ class SimilarityEnhancedRecWalk(GenreEnhancedRecWalk):
                     combined_weight = (self.P[user_idx, self.artist2idx[u_artist]] * 
                                     self.sim_weight * 
                                     sim_score)
-                    if combined_weight > min_weight:
+                    if combined_weight >= min_weight:
                         paths.append({
                             'path_type': 'similarity',
                             'path': ['user', 'listened', 'artist', 'similar_to', 'artist'],
